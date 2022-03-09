@@ -14,7 +14,11 @@ class SecurityController extends AbstractController
 {
     use TargetPathTrait;
 
-    #[Route('/login', name: 'security_login')]
+    #[Route(
+        path: '/login',
+        name: 'security_login',
+        methods: ['GET', 'POST']
+    )]
     public function login(Request $request, AuthenticationUtils $helper): Response
     {
         if ($this->getUser()) {

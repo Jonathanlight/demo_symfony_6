@@ -51,55 +51,44 @@ class AppLoginFormAuthentification extends AbstractAuthenticator
 
     public function authenticate(Request $request): Passport
     {
-        $username = $request->request->get('_username', '');
-        $user = $this->em->getRepository(User::class)
-            ->findOneByUsername($username);
-
-        if (!$user) {
-            throw new UserNotFoundException();
-        }
-
-        //verification bool
-        if (true !== $user->isEnabled()){
-            throw new UserNotFoundException();
-        }
-
-        $request->getSession()->set(Security::LAST_USERNAME, $username);
+        $login = $request->request->get('_username');
+        $password = $request->request->get('_password');
 
         return new Passport(
-            new UserBadge($username),
-            new PasswordCredentials(
-                $request->request->get('_password')
-            ),
-            [
-                new CsrfTokenBadge('authenticate', $request->get('_csrf_token'))
-            ]
+            new UserBadge($login, function ($userIdentifier) {
+                $user = $this->em->getRepository(User::class)
+                    ->findOneByUsernameOrEmail($userIdentifier);
+
+                if ($user->isEnabled() === false) {
+                    throw new CustomUserMessageAuthenticationException('error.user_not_enabled');
+                }
+
+                return $user;
+            }),
+            new PasswordCredentials($password)
         );
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
-            return new RedirectResponse($targetPath);
-        }
-
-        $user = $token->getUser();
-
         return new RedirectResponse($this->urlGenerator->generate('homepage'));
     }
 
-
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        $data = [
-            'message' => strtr($exception->getMessageKey(), $exception->getMessageData())
-        ];
+        if ($request->hasSession()) {
+            $request->getSession()->set(Security::AUTHENTICATION_ERROR, $exception);
+        }
 
-        return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);
+        return new RedirectResponse($this->urlGenerator->generate('security_login'));
     }
 
-    public function supports(Request $request): bool
+    public function supports(Request $request): ?bool
     {
-        return self::LOGIN_ROUTE === $request->attributes->get('_route') && $request->isMethod("POST");
+        if (!$request->request->get('_username') || !$request->request->get('_password')) {
+            return false;
+        }
+
+        return true;
     }
 }
