@@ -13,24 +13,19 @@ security:
             security: false
         main:
             lazy: true
-            provider: app_user_provider
+            pattern: ^/
             form_login:
-                check_path: security_login
-                login_path: security_login
+                provider: app_user_provider
                 enable_csrf: true
+                login_path: security_login
+                check_path: security_login
                 default_target_path: homepage
+                always_use_default_target_path: false
+                use_referer: true
             logout:
                 path: security_logout
-                target: homepage
-                csrf_parameter: logout
-                csrf_token_generator: security.csrf.token_manager
-            entry_point: 'form_login'
-
-            #custom_authenticators:
-            #    - App\Security\AppLoginFormAuthentification
-            #logout:
-            #    path: security_logout
-            #    target: homepage
+            custom_authenticators:
+                - App\Security\AppLoginFormAuthentification
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        - { path: ^/login, role: PUBLIC_ACCESS }
+        - { path: ^/, role: ROLE_USER }
